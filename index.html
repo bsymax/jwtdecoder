@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JWT Decoder — Decode JSON Web Tokens Online for Free</title>
+  <meta name="description" content="Free online JWT decoder. Decode JSON Web Token header and payload instantly with JSON syntax highlighting. View timestamps as human-readable dates. Works entirely in your browser — no data leaves your device.">
+  <link rel="canonical" href="https://jwtcoder.fyi/">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+    /* JSON syntax highlighting */
+    .json-out .key { color: #0550ae; }
+    .json-out .string { color: #0a3069; }
+    .json-out .number { color: #0550ae; }
+    .json-out .boolean { color: #cf222e; }
+    .json-out .null { color: #8250df; }
+    .json-out .bracket { color: #57606a; }
+    .json-out .colon { color: #24292f; }
+
+    .dark .json-out .key { color: #79c0ff; }
+    .dark .json-out .string { color: #a5d6ff; }
+    .dark .json-out .number { color: #79c0ff; }
+    .dark .json-out .boolean { color: #ff7b72; }
+    .dark .json-out .null { color: #d2a8ff; }
+    .dark .json-out .bracket { color: #8b949e; }
+    .dark .json-out .colon { color: #c9d1d9; }
+
+    .json-out {
+      font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-all;
+      overflow-x: auto;
+    }
+
+    /* Toast */
+    .toast-in { animation: slideDown 0.25s ease-out; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Claim tooltip */
+    .claim-tag {
+      position: relative;
+      cursor: help;
+      border-bottom: 1px dashed currentColor;
+    }
+    .claim-tag:hover .claim-tip {
+      display: block;
+    }
+    .claim-tip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: #f9fafb;
+      font-size: 11px;
+      line-height: 1.4;
+      padding: 4px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .dark .claim-tip {
+      background: #374151;
+    }
+
+    /* JWT parts visual */
+    .jwt-part { transition: all 0.2s; }
+    .jwt-part:hover { filter: brightness(0.95); }
+
+    /* Scrollbar */
+    #jwtInput::-webkit-scrollbar { width: 6px; height: 6px; }
+    #jwtInput::-webkit-scrollbar-track { background: transparent; }
+    #jwtInput::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+    .dark #jwtInput::-webkit-scrollbar-thumb { background: #4b5563; }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen transition-colors">
+
+  <!-- Header -->
+  <header class="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center text-white text-xs font-bold">⋮</div>
+        <span class="text-lg font-semibold tracking-tight">JWT Decoder</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="themeToggle" class="w-9 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-yellow-400" title="Toggle theme">
+          <svg class="w-5 h-5 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg class="w-5 h-5 hidden dark:block drop-shadow-[0_0_6px_rgba(250,204,21,0.6)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-6xl mx-auto px-4 py-5">
+    <!-- Toast -->
+    <div id="toast" class="fixed top-4 right-4 z-50 hidden"></div>
+
+    <!-- JWT Input -->
+    <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden mb-5">
+      <div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+        <label for="jwtInput" class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">JWT Token</label>
+        <div class="flex items-center gap-2">
+          <button id="loadSample" class="text-xs text-primary-600 dark:text-primary-400 hover:underline">Load Sample</button>
+          <button id="clearInput" class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Clear</button>
+        </div>
+      </div>
+      <textarea id="jwtInput" class="w-full p-4 bg-transparent font-mono text-sm leading-6 outline-none resize-none border-0 min-h-[80px]" placeholder='Paste your JWT token here...
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c' spellcheck="false"></textarea>
+    </div>
+
+    <!-- Error bar -->
+    <div id="errorBar" class="hidden mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm"></div>
+
+    <!-- Results Area (hidden until valid JWT) -->
+    <div id="results" class="hidden">
+
+      <!-- JWT Structure Visual -->
+      <div id="jwtVisual" class="flex items-center gap-1 mb-5 flex-wrap text-xs font-mono">
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- Header + Payload Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+        <!-- Header Panel -->
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden flex flex-col">
+          <div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Header</span>
+              <span id="headerAlg" class="text-[10px] px-1.5 py-0.5 rounded font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"></span>
+            </div>
+            <button id="copyHeaderBtn" class="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              Copy
+            </button>
+          </div>
+          <div id="headerOutput" class="json-out flex-1 p-4 overflow-auto min-h-[180px] lg:min-h-[260px]"></div>
+        </div>
+
+        <!-- Payload Panel -->
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden flex flex-col">
+          <div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Payload</span>
+              <span id="payloadClaims" class="text-[10px] px-1.5 py-0.5 rounded font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hidden"></span>
+            </div>
+            <button id="copyPayloadBtn" class="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              Copy
+            </button>
+          </div>
+          <div id="payloadOutput" class="json-out flex-1 p-4 overflow-auto min-h-[180px] lg:min-h-[260px]"></div>
+        </div>
+      </div>
+
+      <!-- Timestamps -->
+      <div id="timestamps" class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden mb-5 hidden">
+        <div class="flex items-center px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+          <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timestamps</span>
+        </div>
+        <div id="timestampsContent" class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+
+      <!-- Signature Status -->
+      <div id="sigStatus" class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden mb-5">
+        <div class="flex items-center px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+          <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Signature</span>
+        </div>
+        <div class="p-4 flex items-start gap-3">
+          <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-2v-2h2v2zm0-4h-2V8h2v4zm-1 12a9 9 0 110-18 9 9 0 010 18z"/></svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-800 dark:text-gray-200">Signature present but not verified</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">This tool decodes the JWT header and payload (which are Base64url-encoded, not encrypted). Verifying the cryptographic signature requires the secret key — that stays on your server. The data shown here is what anyone with your token can already see.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- How to Use -->
+    <section class="mb-8">
+      <h2 class="text-xl font-bold mb-3">How to Use This Tool</h2>
+      <ol class="list-decimal list-inside text-gray-600 dark:text-gray-400 space-y-2 text-sm">
+        <li>Paste your <strong>JWT token</strong> into the input box above. The decoder auto-detects and parses instantly.</li>
+        <li>View the <strong>Header</strong> — shows the signing algorithm and token type.</li>
+        <li>View the <strong>Payload</strong> — shows all claims (user data, timestamps, permissions) with syntax highlighting.</li>
+        <li>Check <strong>Timestamps</strong> — <code>iat</code>, <code>exp</code>, and <code>nbf</code> are converted to human-readable dates with relative time.</li>
+        <li>Click <strong>Copy</strong> on any section to copy the decoded JSON to your clipboard.</li>
+      </ol>
+    </section>
+
+    <!-- FAQ -->
+    <section class="mb-8">
+      <h2 class="text-xl font-bold mb-3">FAQ</h2>
+      <div class="space-y-4 text-sm text-gray-600 dark:text-gray-400">
+        <div>
+          <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-1">Is it safe to paste my JWT here?</h3>
+          <p>Yes. Everything runs locally in your browser — your token never leaves your device. No server, no tracking, no data collection. But remember: the decoded content is what anyone with your token can already see. Never share your tokens publicly.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-1">What's the difference between decoding and verifying?</h3>
+          <p><strong>Decoding</strong> reads the header and payload (Base64url). <strong>Verifying</strong> checks the cryptographic signature using the secret key — only your server can do that. This tool decodes; it does not verify signatures.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-1">Why does my JWT have three parts?</h3>
+          <p>Every JWT is <code>header.payload.signature</code>. The header says how it's signed, the payload carries the data (claims), and the signature proves it wasn't tampered with.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- More Free Tools -->
+    <section class="mb-8">
+      <h2 class="text-xl font-bold mb-3">More Free Tools</h2>
+      <div class="flex flex-wrap gap-3">
+        <a href="https://jsonformatter.fyi/" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">JSON Formatter</a>
+        <a href="https://uuidgenerator.fyi/" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">UUID Generator</a>
+        <a href="https://caseconverter.fyi/" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Case Converter</a>
+        <a href="https://wordcounter.fyi/" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Word Counter</a>
+        <a href="https://rgbtohexconverter.fyi/" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">RGB to HEX</a>
+        <a href="https://imagetobase64.online/" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Image to Base64</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-gray-200 dark:border-gray-800 py-6 text-center text-xs text-gray-400 dark:text-gray-600">
+    <p>JWT Decoder — No data uploaded to server. Everything runs locally in your browser.</p>
+  </footer>
+
+  <script>
+    const $ = id => document.getElementById(id)
+    const jwtInput = $('jwtInput')
+    const results = $('results')
+    const errorBar = $('errorBar')
+    const toast = $('toast')
+    const jwtVisual = $('jwtVisual')
+    const headerOutput = $('headerOutput')
+    const payloadOutput = $('payloadOutput')
+    const headerAlg = $('headerAlg')
+    const payloadClaims = $('payloadClaims')
+    const timestamps = $('timestamps')
+    const timestampsContent = $('timestampsContent')
+    const themeToggle = $('themeToggle')
+
+    // --- Dark mode ---
+    function applyTheme(dark) {
+      document.documentElement.classList.toggle('dark', dark)
+      localStorage.setItem('theme', dark ? 'dark' : 'light')
+    }
+    themeToggle.addEventListener('click', () => applyTheme(!document.documentElement.classList.contains('dark')))
+    applyTheme(localStorage.getItem('theme') === 'dark')
+
+    // --- Toast ---
+    let toastTimer
+    function showToast(msg) {
+      toast.innerHTML = `<div class="toast-in px-4 py-2 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-sm shadow-lg">${msg}</div>`
+      toast.classList.remove('hidden')
+      clearTimeout(toastTimer)
+      toastTimer = setTimeout(() => toast.classList.add('hidden'), 2000)
+    }
+
+    // --- Base64url decode ---
+    function base64urlDecode(str) {
+      // Add padding and convert URL-safe chars
+      str = str.replace(/-/g, '+').replace(/_/g, '/')
+      while (str.length % 4) str += '='
+      try {
+        const decoded = atob(str)
+        // Handle UTF-8
+        try {
+          return decodeURIComponent(escape(decoded))
+        } catch {
+          return decoded
+        }
+      } catch (e) {
+        throw new Error('Invalid Base64url encoding')
+      }
+    }
+
+    // --- JSON syntax highlight ---
+    function highlightJSON(obj) {
+      const text = JSON.stringify(obj, null, 2)
+      return text
+        .replace(/("(?:\\.|[^"\\])*")\s*:/g, '<span class="key">$1</span>:')
+        .replace(/:(\s*)("(?:\\.|[^"\\])*")/g, ':$1<span class="string">$2</span>')
+        .replace(/:(\s*)(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, ':$1<span class="number">$2</span>')
+        .replace(/:(\s*)(true|false)/g, ':$1<span class="boolean">$2</span>')
+        .replace(/:(\s*)(null)/g, ':$1<span class="null">$2</span>')
+        .replace(/([{}[\]])/g, '<span class="bracket">$1</span>')
+    }
+
+    // --- Standard JWT claim descriptions ---
+    const CLAIM_DESCRIPTIONS = {
+      iss: 'Issuer — who issued this token',
+      sub: 'Subject — who this token is about (usually a user ID)',
+      aud: 'Audience — who this token is intended for',
+      exp: 'Expiration Time — when this token expires',
+      nbf: 'Not Before — when this token becomes valid',
+      iat: 'Issued At — when this token was created',
+      jti: 'JWT ID — unique identifier for this token',
+    }
+
+    // --- Time formatting helper ---
+    function formatTimestamp(unixSeconds) {
+      const date = new Date(unixSeconds * 1000)
+      const iso = date.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+      const now = Date.now()
+      const diff = unixSeconds * 1000 - now
+      const absDiff = Math.abs(diff)
+      const isPast = diff < 0
+
+      let relative
+      const mins = Math.floor(absDiff / 60000)
+      const hrs = Math.floor(absDiff / 3600000)
+      const days = Math.floor(absDiff / 86400000)
+
+      if (mins < 1) relative = 'just now'
+      else if (mins < 60) relative = `${mins} min${mins > 1 ? 's' : ''} ${isPast ? 'ago' : 'from now'}`
+      else if (hrs < 24) relative = `${hrs} hour${hrs > 1 ? 's' : ''} ${isPast ? 'ago' : 'from now'}`
+      else relative = `${days} day${days > 1 ? 's' : ''} ${isPast ? 'ago' : 'from now'}`
+
+      return { iso, relative, isPast, date }
+    }
+
+    // --- Render a timestamp card ---
+    function timestampCard(label, unixSeconds, claimName) {
+      const { iso, relative, isPast } = formatTimestamp(unixSeconds)
+      const icon = claimName === 'exp' ? (isPast ? '❌' : '⏰') : claimName === 'nbf' ? (isPast ? '✅' : '🔒') : '🕐'
+      const colorClass = claimName === 'exp' && isPast ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10' : ''
+      return `
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-3 ${colorClass}">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-sm">${icon}</span>
+            <span class="claim-tag text-xs font-mono font-bold text-gray-700 dark:text-gray-300">${label}<span class="claim-tip">${CLAIM_DESCRIPTIONS[claimName] || claimName}</span></span>
+          </div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${iso}</div>
+          <div class="text-xs font-semibold mt-1 ${isPast ? 'text-gray-400 dark:text-gray-500' : 'text-green-600 dark:text-green-400'}">${relative}</div>
+        </div>
+      `
+    }
+
+    // --- Add claim tooltips to payload JSON output ---
+    function addClaimTooltips(html, payload) {
+      const keys = Object.keys(payload)
+      keys.forEach(k => {
+        if (CLAIM_DESCRIPTIONS[k]) {
+          // Replace the key span with a wrapped version that includes tooltip
+          const escapedKey = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const regex = new RegExp(`(<span class="key">"${escapedKey}"</span>)`, 'g')
+          html = html.replace(regex, `<span class="claim-tag">$1<span class="claim-tip">${CLAIM_DESCRIPTIONS[k]}</span></span>`)
+        }
+      })
+      return html
+    }
+
+    // --- Parse JWT ---
+    function parseJWT(token) {
+      const parts = token.trim().split('.')
+      if (parts.length !== 3) {
+        throw new Error('Invalid JWT format. A JWT must have exactly 3 parts separated by dots (header.payload.signature).')
+      }
+      const [headerB64, payloadB64, signatureB64] = parts
+
+      if (!headerB64 || !payloadB64 || !signatureB64) {
+        throw new Error('Invalid JWT format. Each part (header, payload, signature) must not be empty.')
+      }
+
+      let header, payload
+      try {
+        header = JSON.parse(base64urlDecode(headerB64))
+      } catch {
+        throw new Error('Failed to decode the JWT header. Make sure the token is correctly copied.')
+      }
+      try {
+        payload = JSON.parse(base64urlDecode(payloadB64))
+      } catch {
+        throw new Error('Failed to decode the JWT payload. Make sure the token is correctly copied.')
+      }
+
+      return { header, payload, parts: { header: headerB64, payload: payloadB64, signature: signatureB64 } }
+    }
+
+    // --- Render JWT visual (colored parts bar) ---
+    function renderJWTVisual(parts) {
+      const colors = [
+        { label: 'Header', color: 'bg-red-400 dark:bg-red-500', b64: parts.header },
+        { label: 'Payload', color: 'bg-purple-400 dark:bg-purple-500', b64: parts.payload },
+        { label: 'Signature', color: 'bg-blue-400 dark:bg-blue-500', b64: parts.signature },
+      ]
+      jwtVisual.innerHTML = colors.map((c, i) =>
+        `<span class="jwt-part ${c.color} text-white px-2.5 py-1 rounded-md flex items-center gap-1.5">
+          <span class="font-semibold text-[10px] uppercase tracking-wider opacity-90">${c.label}</span>
+          <span class="opacity-75 hidden sm:inline">${c.b64.length > 30 ? c.b64.slice(0, 30) + '…' : c.b64}</span>
+        </span>${i < 2 ? '<span class="text-gray-400 dark:text-gray-600 font-bold text-sm">.</span>' : ''}`
+      ).join('')
+    }
+
+    // --- Render timestamps ---
+    function renderTimestamps(payload) {
+      const timeClaims = []
+      if (payload.iat) timeClaims.push({ label: 'iat', value: payload.iat })
+      if (payload.exp) timeClaims.push({ label: 'exp', value: payload.exp })
+      if (payload.nbf) timeClaims.push({ label: 'nbf', value: payload.nbf })
+
+      if (timeClaims.length === 0) {
+        timestamps.classList.add('hidden')
+        return
+      }
+
+      timestamps.classList.remove('hidden')
+      timestampsContent.innerHTML = timeClaims.map(t => timestampCard(t.label, t.value, t.label)).join('')
+    }
+
+    // --- Main decode function ---
+    function decode() {
+      errorBar.classList.add('hidden')
+      const token = jwtInput.value.trim()
+
+      if (!token) {
+        results.classList.add('hidden')
+        return
+      }
+
+      try {
+        const { header, payload, parts } = parseJWT(token)
+
+        // Show results
+        results.classList.remove('hidden')
+
+        // Visual
+        renderJWTVisual(parts)
+
+        // Header
+        const alg = header.alg || 'none'
+        headerAlg.textContent = alg
+        headerOutput.innerHTML = highlightJSON(header)
+
+        // Payload with tooltips
+        let payloadHTML = highlightJSON(payload)
+        payloadHTML = addClaimTooltips(payloadHTML, payload)
+        payloadOutput.innerHTML = payloadHTML
+
+        // Claims count
+        const standardClaims = Object.keys(payload).filter(k => CLAIM_DESCRIPTIONS[k])
+        if (standardClaims.length > 0) {
+          payloadClaims.textContent = `${standardClaims.length} standard claim${standardClaims.length > 1 ? 's' : ''}`
+          payloadClaims.classList.remove('hidden')
+        } else {
+          payloadClaims.classList.add('hidden')
+        }
+
+        // Timestamps
+        renderTimestamps(payload)
+
+      } catch (e) {
+        results.classList.add('hidden')
+        errorBar.textContent = '❌ ' + e.message
+        errorBar.classList.remove('hidden')
+      }
+    }
+
+    // --- Auto-decode on input ---
+    let decodeTimer
+    jwtInput.addEventListener('input', () => {
+      clearTimeout(decodeTimer)
+      decodeTimer = setTimeout(decode, 200)
+    })
+
+    // --- Paste: instant decode ---
+    jwtInput.addEventListener('paste', () => {
+      setTimeout(decode, 10)
+    })
+
+    // --- Copy buttons ---
+    function copyJSON(obj) {
+      const text = JSON.stringify(obj, null, 2)
+      navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!')).catch(() => showToast('Failed to copy'))
+    }
+
+    let currentHeader = null
+    let currentPayload = null
+
+    // Override decode to store current objects
+    const originalDecode = decode
+    decode = function() {
+      errorBar.classList.add('hidden')
+      const token = jwtInput.value.trim()
+      if (!token) { results.classList.add('hidden'); currentHeader = null; currentPayload = null; return }
+
+      try {
+        const result = parseJWT(token)
+        currentHeader = result.header
+        currentPayload = result.payload
+        const { header, payload, parts } = result
+
+        results.classList.remove('hidden')
+        renderJWTVisual(parts)
+        headerAlg.textContent = header.alg || 'none'
+        headerOutput.innerHTML = highlightJSON(header)
+        let payloadHTML = highlightJSON(payload)
+        payloadHTML = addClaimTooltips(payloadHTML, payload)
+        payloadOutput.innerHTML = payloadHTML
+
+        const standardClaims = Object.keys(payload).filter(k => CLAIM_DESCRIPTIONS[k])
+        if (standardClaims.length > 0) {
+          payloadClaims.textContent = `${standardClaims.length} standard claim${standardClaims.length > 1 ? 's' : ''}`
+          payloadClaims.classList.remove('hidden')
+        } else {
+          payloadClaims.classList.add('hidden')
+        }
+        renderTimestamps(payload)
+      } catch (e) {
+        results.classList.add('hidden')
+        currentHeader = null
+        currentPayload = null
+        errorBar.textContent = '❌ ' + e.message
+        errorBar.classList.remove('hidden')
+      }
+    }
+
+    $('copyHeaderBtn').addEventListener('click', () => {
+      if (currentHeader) copyJSON(currentHeader)
+    })
+    $('copyPayloadBtn').addEventListener('click', () => {
+      if (currentPayload) copyJSON(currentPayload)
+    })
+
+    // --- Load Sample ---
+    $('loadSample').addEventListener('click', () => {
+      // A sample JWT (never expires, demo only)
+      const sample = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE3NDk0NDU4MDAsIm5iZiI6MTUxNjIzOTAyMiwiaXNzIjoiaHR0cHM6Ly9leGFtcGxlLmNvbSIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUuY29tIiwicm9sZSI6ImFkbWluIn0.dummy_signature_for_demo'
+      jwtInput.value = sample
+      decode()
+    })
+
+    // --- Clear ---
+    $('clearInput').addEventListener('click', () => {
+      jwtInput.value = ''
+      results.classList.add('hidden')
+      errorBar.classList.add('hidden')
+      currentHeader = null
+      currentPayload = null
+    })
+
+    // --- Init: try to decode any pre-filled placeholder (no) ---
+  </script>
+</body>
+</html>
